@@ -1,0 +1,47 @@
+---
+- name: Install Docker Engine
+  hosts: myhosts
+  become: yes
+
+  tasks:
+    - name: Update APT
+      apt: state=latest force_apt_get=yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg2
+          - software-properties-common
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+
+   - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/debian bullseye stable
+        state: present
+
+    - name: Install Docker Engine
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        
+
+    

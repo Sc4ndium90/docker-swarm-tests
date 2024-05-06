@@ -9,7 +9,7 @@ if (whoami != root)
 fi
 
 echo "Installing required dependencies (wget & gpg)"
-apt update && apt upgrade -y && apt install wget gpg
+apt update && apt upgrade -y && apt install wget gpg -y
 
 echo "Installing Ansible for Debian.."
 

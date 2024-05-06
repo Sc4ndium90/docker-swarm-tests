@@ -1,0 +1,33 @@
+- name: Configure keepalived on Docker Swarm nodes
+  hosts: myhosts
+  become: yes
+
+  tasks:
+    - name: Add ip_vs to /etc/modules
+      lineinfile:
+        path: /etc/modules
+        line: 'ip_vs'
+      notify: Load ip_vs module
+
+    - name: Install python-docker package
+      apt:
+        name: python3-docker
+        state: present
+
+    - name: Set keepalived configuration
+      docker_container:
+        name: keepalived
+        image: osixia/keepalived:2.0.20
+        restart_policy: always
+        network_mode: host
+        env:
+          KEEPALIVED_UNICAST_PEERS: "{{ groups['myhosts'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | list | to_json }}"
+          KEEPALIVED_VIRTUAL_IPS: "192.168.40.250"
+          KEEPALIVED_PRIORITY: "{{ 200 - (10 * ansible_play_hosts.index(inventory_hostname)) }}"
+      loop_control:
+        index_var: loop.index0
+
+
+  handlers:
+    - name: Load ip_vs module
+      shell: modprobe ip_vs

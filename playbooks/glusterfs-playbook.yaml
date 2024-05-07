@@ -1,0 +1,140 @@
+- name: Setup GlusterFS Volumes
+  hosts: myhosts
+  become: yes
+  tasks:
+    - name: Update apt-get repo and cache
+      apt: update_cache=yes
+
+    - name: Update APT
+      apt: state=latest force_apt_get=yes
+
+    - name: Install XFS file system and required packages
+      apt:
+        name:
+          - xfsprogs
+          - software-properties-common
+
+    - name: Load xfs module
+      shell: modprobe -v xfs
+
+    - name: Format disk /dev/sdb to xfs
+      community.general.filesystem:
+        fstype: xfs
+        dev: /dev/sdb
+
+    - name: Add entries to /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ item }}"
+        state: present
+      loop:
+        - '192.168.40.11 swarm1'
+        - '192.168.40.12 swarm2'
+        - '192.168.40.13 swarm3'
+
+    - name: Create folder for Gluster
+      file:
+        path: /gluster/bricks
+        state: directory
+
+    - name: Add entry to /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        line: '/dev/sdb /gluster/bricks xfs defaults 0 0'
+        state: present
+
+    - name: Mount all filesystems defined in /etc/fstab
+      shell: mount -a
+
+    - name: Download and dearmor GlusterFS GPG key
+      ansible.builtin.get_url:
+        url: https://download.gluster.org/pub/gluster/glusterfs/11/rsa.pub
+        dest: /tmp/glusterfs-rsa.pub
+        mode: '0644'
+
+    - name: Move GPG key to keyrings directory
+      ansible.builtin.shell:
+        cmd: gpg --dearmor < /tmp/glusterfs-rsa.pub > /usr/share/keyrings/glusterfs-archive-keyring.gpg
+        creates: /usr/share/keyrings/glusterfs-archive-keyring.gpg
+
+    - name: Get DEBID from /etc/os-release
+      ansible.builtin.shell:
+        cmd: grep 'VERSION_ID=' /etc/os-release | cut -d '=' -f 2 | tr -d '"'
+      register: debid
+
+    - name: Get DEBVER from /etc/os-release
+      ansible.builtin.shell:
+        cmd: grep 'VERSION=' /etc/os-release | grep -Eo '[a-z]+'
+      register: debver
+
+    - name: Get DEBARCH from dpkg
+      ansible.builtin.shell:
+        cmd: dpkg --print-architecture
+      register: debarch
+
+    - name: Add GlusterFS APT repository
+      ansible.builtin.lineinfile:
+        path: /etc/apt/sources.list.d/gluster.list
+        line: "deb [signed-by=/usr/share/keyrings/glusterfs-archive-keyring.gpg] https://download.gluster.org/pub/gluster/glusterfs/LATEST/Debian/{{ debid.stdout }}/{{ debarch.stdout }}/apt {{ debver.stdout }} main"
+        create: yes
+
+    - name: Update package cache
+      apt:
+        update_cache: yes
+
+    - name: Install GlusterFS Client & Server
+      apt:
+        name:
+          - glusterfs-server
+          - glusterfs-client
+
+    - name: Enable glusterd service
+      systemd:
+        name: glusterd
+        enabled: yes
+
+    - name: Start glusterd service
+      systemd:
+        name: glusterd
+        state: started
+
+    - name: Probe peers on the first node
+      command: "{{ item }}"
+      loop:
+        - gluster peer probe swarm2
+        - gluster peer probe swarm3
+      when: inventory_hostname == '192.168.40.11'
+
+    - name: Create directory for configs
+      file:
+        path: /gluster/bricks/configs
+        state: directory
+
+    - name: Create GlusterFS volume for configs
+      command: gluster volume create configs replica 3 swarm1:/gluster/bricks/configs swarm2:/gluster/bricks/configs swarm3:/gluster/bricks/configs
+      when: inventory_hostname == '192.168.40.11'
+
+    - name: Start volume for configs
+      command: gluster volume start configs
+      when: inventory_hostname == '192.168.40.11'
+
+    - name: Create target mount for configs volume
+      file:
+        path: /mnt/shared-configs
+        state: directory
+
+    - name: Mount configs volume
+      mount:
+        src: "{{ inventory_hostname }}:/configs"
+        path: /mnt/shared-configs
+        fstype: glusterfs
+        state: ephemeral
+
+    - name: Add entry to fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "{{ inventory_hostname }}:/configs /mnt/shared-configs glusterfs defaults,_netdev 0 0"
+        state: present
+
+    - name: Mount all filesystems defined in /etc/fstab
+      shell: mount -a

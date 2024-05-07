@@ -46,7 +46,7 @@ ssh-copy-id 192.168.40.13
 
 ## Installation of Docker on all machines
 The installation of Docker on all machines requires some packages first. We'll install `sudo`
-`apt install sudo`
+```apt install sudo```
 
 
 ## Installation of Keepalived Docker container on all machines

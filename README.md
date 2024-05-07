@@ -45,8 +45,13 @@ ssh-copy-id 192.168.40.13
 
 
 ## Installation of Docker on all machines
-The installation of Docker on all machines requires some packages first. We'll install `sudo`
+The installation of Docker on all machines requires some packages first. We'll install `sudo`. Also check that sources for apt are OK (ISO for example can throw an error)
 ```apt install sudo```
+
+After that, we can run our playbook that will install Docker
+```
+ansible-playbook -u root -i inventory.ini docker-ce-playbook.yaml
+```
 
 
 ## Installation of Keepalived Docker container on all machines

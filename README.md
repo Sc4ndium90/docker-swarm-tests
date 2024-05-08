@@ -1,7 +1,7 @@
 # docker-swarm-tests
-This repository is about some testing on Docker Swarm, this is not for production ready setup, but mostly to have trace of my testings scripts
+This repository is about some testing on Docker Swarm, this is not for production ready setup, but mostly to have trace of my testings
 
-I'm trying to setup a three node cluster with Docker Swarm, GlusterFS and using Ansible. It will host a HA web server with nginx as a reverse proxy, haproxy for HA and load balance, keepalived, galera cluster and a wordpress site.
+I'm trying to setup a three node cluster with Docker Swarm, GlusterFS and using Ansible. I'll try to setup HAProxy, GlusterFS volumes, Keepalived, Galera Cluster and a WordPress website.
 
 Those three nodes have the following specs : 
 - 1vCPU
@@ -56,9 +56,15 @@ ansible-playbook -u root -i inventory.ini docker-ce-playbook.yaml
 
 ## Installation of Keepalived Docker container on all machines
 
-Apparently, my ansible playbook doesn't work for that, I have to use the old way : cmd lines
-
-Run this command on each node, replace the unicast peers, virtual IP (VIP), priority (higher = more important) and the interface name
+To install Keepalived on each swarm nodes, I can also run the playbook for it. If you try to use it, please replace the virtual IP (VIP) and the interface name in the playbook file
 ```
-docker run -d --name keepalived --restart=always   --cap-add=NET_ADMIN --cap-add=NET_BROADCAST --cap-add=NET_RAW --net=host   -e KEEPALIVED_UNICAST_PEERS="#PYTHON2BASH:['192.168.40.11', '192.168.40.12', '192.168.40.13']"   -e KEEPALIVED_VIRTUAL_IPS=192.168.40.99   -e KEEPALIVED_PRIORITY=200 -e KEEPALIVED_INTERFACE=ens18  osixia/keepalived:2.0.20
+ansible-playbook -i inventory.ini keepalived-playbook.yaml
+```
+
+
+## Installation of GlusterFS + volume creation
+
+This step also use a playbook to install GlusterFS, create volumes (only the configs volume ATM) and mount them (+ add entry to fstab file)
+```
+ansible-playbook -i inventory.ini glusterfs-playbook.yaml
 ```

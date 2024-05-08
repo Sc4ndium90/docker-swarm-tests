@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  proxy:
+    image: haproxy
+    ports:
+      - 80:80
+      - 443:443
+      - 3306:3306
+    volumes:
+      - /mnt/shared-configs/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        max_replicas_per_node: 1
+    networks:
+      - haproxy
+
+networks:
+  haproxy:
+    driver: overlay

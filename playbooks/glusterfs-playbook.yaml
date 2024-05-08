@@ -110,6 +110,11 @@
         path: /gluster/bricks/configs
         state: directory
 
+    - name: Create directory for wordpress
+      file:
+        path: /gluster/bricks/wordpress
+        state: directory
+
     - name: Create GlusterFS volume for configs
       command: gluster volume create configs replica 3 swarm1:/gluster/bricks/configs swarm2:/gluster/bricks/configs swarm3:/gluster/bricks/configs
       when: inventory_hostname == '192.168.40.11'
@@ -123,6 +128,11 @@
         path: /mnt/shared-configs
         state: directory
 
+    - name: Create target mount for wordpress volume
+      file:
+        path: /mnt/wordpress
+        state: directory
+
     - name: Mount configs volume
       mount:
         src: "{{ inventory_hostname }}:/configs"
@@ -130,10 +140,23 @@
         fstype: glusterfs
         state: ephemeral
 
-    - name: Add entry to fstab
+    - name: Mount configs volume
+      mount:
+        src: "{{ inventory_hostname }}:/wordpress"
+        path: /mnt/wordpress
+        fstype: glusterfs
+        state: ephemeral
+
+    - name: Add entry to fstab for volume configs
       lineinfile:
         path: /etc/fstab
         line: "{{ inventory_hostname }}:/configs /mnt/shared-configs glusterfs defaults,_netdev 0 0"
+        state: present
+
+    - name: Add entry to fstab for volume wordpress
+      lineinfile:
+        path: /etc/fstab
+        line: "{{ inventory_hostname }}:/wordpress /mnt/wordpress glusterfs defaults,_netdev 0 0"
         state: present
 
     - name: Mount all filesystems defined in /etc/fstab
